@@ -6,18 +6,45 @@ from io import BytesIO
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
 import os
-import gdown
+
+# ----------------------------
+# ✅ Helper to download files from Google Drive
+# ----------------------------
+def download_from_gdrive(file_id, destination):
+    URL = "https://drive.google.com/uc?export=download"
+
+    with requests.Session() as session:
+        response = session.get(URL, params={'id': file_id}, stream=True)
+        token = get_confirm_token(response)
+
+        if token:
+            response = session.get(URL, params={'id': file_id, 'confirm': token}, stream=True)
+
+        save_response_content(response, destination)
+
+def get_confirm_token(response):
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            return value
+    return None
+
+def save_response_content(response, destination):
+    CHUNK_SIZE = 32768
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(CHUNK_SIZE):
+            if chunk:
+                f.write(chunk)
 
 # ----------------------------
 # ✅ Download .pkl files if not present
 # ----------------------------
 if not os.path.exists("movie_list.pkl"):
     print("⬇️ Downloading movie_list.pkl...")
-    gdown.download("https://drive.google.com/uc?id=1njRyATrUwtdm-2e5EUuKG9n-BEQwVbvq", "movie_list.pkl", quiet=False)
+    download_from_gdrive("1njRyATrUwtdm-2e5EUuKG9n-BEQwVbvq", "movie_list.pkl")
 
 if not os.path.exists("similarity.pkl"):
     print("⬇️ Downloading similarity.pkl...")
-    gdown.download("https://drive.google.com/uc?id=1LVMYIfgMwS3QH8FYre7lSDqTgbgoLNvb", "similarity.pkl", quiet=False)
+    download_from_gdrive("1LVMYIfgMwS3QH8FYre7lSDqTgbgoLNvb", "similarity.pkl")
 
 # ----------------------------
 # ✅ Load pickle files safely
@@ -43,7 +70,6 @@ except Exception as e:
     st.error("similarity.pkl could not be loaded.")
     st.stop()
 
-
 # ----------------------------
 # 🎬 Function to fetch poster image
 # ----------------------------
@@ -64,7 +90,7 @@ def fetch_poster(movie_id):
         if poster_path:
             image_url = f"https://image.tmdb.org/t/p/w500{poster_path}"
             image_response = requests.get(image_url, timeout=10)
-            image_response.raise_for_status()  # <- ensures image request was successful
+            image_response.raise_for_status()
             try:
                 return Image.open(BytesIO(image_response.content))
             except Exception as e:
@@ -77,7 +103,6 @@ def fetch_poster(movie_id):
     except Exception as e:
         print(f"❌ Error fetching poster for movie_id {movie_id}: {e}")
         return Image.new('RGB', (500, 750), color='gray')
-
 
 # ----------------------------
 # 🎯 Recommendation Logic
@@ -105,7 +130,6 @@ def recommend(movie):
         recommended_movie_posters = list(executor.map(fetch_poster, movie_ids))
 
     return recommended_movie_names, recommended_movie_posters
-
 
 # ----------------------------
 # 🌐 Streamlit Web App
