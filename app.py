@@ -6,6 +6,16 @@ from io import BytesIO
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
 
+import os
+import gdown
+
+# Download movie_list.pkl if not present
+if not os.path.exists("movie_list.pkl"):
+    gdown.download("https://drive.google.com/uc?id=1njRyATrUwtdm-2e5EUuKG9n-BEQwVbvq", "movie_list.pkl", quiet=False)
+
+# Download similarity.pkl if not present
+if not os.path.exists("similarity.pkl"):
+    gdown.download("https://drive.google.com/uc?id=1LVMYIfgMwS3QH8FYre7lSDqTgbgoLNvb", "similarity.pkl", quiet=False)
 
 # Function to fetch poster image
 
