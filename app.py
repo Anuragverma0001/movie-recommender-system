@@ -12,7 +12,6 @@ import os
 # ----------------------------
 def download_from_gdrive(file_id, destination):
     URL = "https://drive.google.com/uc?export=download"
-
     with requests.Session() as session:
         response = session.get(URL, params={'id': file_id}, stream=True)
         token = get_confirm_token(response)
@@ -21,6 +20,14 @@ def download_from_gdrive(file_id, destination):
             response = session.get(URL, params={'id': file_id, 'confirm': token}, stream=True)
 
         save_response_content(response, destination)
+
+    if os.path.exists(destination):
+        size = os.path.getsize(destination)
+        print(f"✅ Downloaded {destination} ({size} bytes)")
+        if size < 5000:
+            print(f"⚠️ Warning: {destination} might be corrupted (too small)")
+    else:
+        print(f"❌ Failed to download {destination}")
 
 def get_confirm_token(response):
     for key, value in response.cookies.items():
@@ -49,9 +56,6 @@ if not os.path.exists("similarity.pkl"):
 # ----------------------------
 # ✅ Load pickle files safely
 # ----------------------------
-print("movie_list.pkl exists:", os.path.exists("movie_list.pkl"))
-print("similarity.pkl exists:", os.path.exists("similarity.pkl"))
-
 try:
     with open("movie_list.pkl", "rb") as f:
         movies = pickle.load(f)
@@ -91,13 +95,8 @@ def fetch_poster(movie_id):
             image_url = f"https://image.tmdb.org/t/p/w500{poster_path}"
             image_response = requests.get(image_url, timeout=10)
             image_response.raise_for_status()
-            try:
-                return Image.open(BytesIO(image_response.content))
-            except Exception as e:
-                print(f"❌ PIL failed to open image: {e}")
-                return Image.new('RGB', (500, 750), color='gray')
+            return Image.open(BytesIO(image_response.content))
         else:
-            print(f"⚠️ No poster path for movie_id {movie_id}")
             return Image.new('RGB', (500, 750), color='gray')
 
     except Exception as e:
@@ -108,10 +107,7 @@ def fetch_poster(movie_id):
 # 🎯 Recommendation Logic
 # ----------------------------
 def recommend(movie):
-    print(f"🔍 Recommending for: {movie}")
-
     if movie not in movies['title'].values:
-        print("❌ Movie not found in movie list!")
         return [], []
 
     index = movies[movies['title'] == movie].index[0]
@@ -123,8 +119,6 @@ def recommend(movie):
     for i in distances[1:6]:
         recommended_movie_names.append(movies.iloc[i[0]].title)
         movie_ids.append(movies.iloc[i[0]].movie_id)
-
-    print(f"✅ Recommended: {recommended_movie_names}")
 
     with ThreadPoolExecutor() as executor:
         recommended_movie_posters = list(executor.map(fetch_poster, movie_ids))
@@ -147,7 +141,6 @@ if st.button('Show Recommendation'):
 
     if recommended_movie_names:
         col1, col2, col3, col4, col5 = st.columns(5)
-
         with col1:
             st.text(recommended_movie_names[0])
             st.image(recommended_movie_posters[0])
