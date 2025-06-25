@@ -64,14 +64,18 @@ def fetch_poster(movie_id):
         if poster_path:
             image_url = f"https://image.tmdb.org/t/p/w500{poster_path}"
             image_response = requests.get(image_url, timeout=10)
-            image = Image.open(BytesIO(image_response.content))
-            return image
+            image_response.raise_for_status()  # <- ensures image request was successful
+            try:
+                return Image.open(BytesIO(image_response.content))
+            except Exception as e:
+                print(f"❌ PIL failed to open image: {e}")
+                return Image.new('RGB', (500, 750), color='gray')
         else:
             print(f"⚠️ No poster path for movie_id {movie_id}")
             return Image.new('RGB', (500, 750), color='gray')
 
     except Exception as e:
-        print(f"❌ Error fetching poster for movie_id {movie_id}:", e)
+        print(f"❌ Error fetching poster for movie_id {movie_id}: {e}")
         return Image.new('RGB', (500, 750), color='gray')
 
 
